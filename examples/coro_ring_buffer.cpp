@@ -21,19 +21,13 @@ int main()
             co_await rb.produce(i);
         }
 
-        // Wait for the ring buffer to clear all items so its a clean stop.
-        while (!rb.empty())
-        {
-            co_await tp.yield();
-        }
-
         // Now that the ring buffer is empty signal to all the consumers its time to stop.  Note that
         // the stop signal works on producers as well, but this example only uses 1 producer.
         {
-            auto scoped_lock = co_await m.lock();
-            std::cerr << "\nproducer is sending stop signal";
+            auto scoped_lock = co_await m.scoped_lock();
+            std::cerr << "\nproducer is sending shutdown signal with drain";
         }
-        rb.notify_waiters();
+        co_await rb.shutdown_drain(tp);
         co_return;
     };
 
@@ -45,7 +39,7 @@ int main()
         while (true)
         {
             auto expected    = co_await rb.consume();
-            auto scoped_lock = co_await m.lock(); // just for synchronizing std::cout/cerr
+            auto scoped_lock = co_await m.scoped_lock(); // just for synchronizing std::cout/cerr
             if (!expected)
             {
                 std::cerr << "\nconsumer " << id << " shutting down, stop signal received";
