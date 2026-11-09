@@ -464,6 +464,9 @@ auto scheduler::process_timeout_execute() -> void
 
     // Update the time to the next smallest time point, re-take the current now time
     // since updating and resuming tasks could shift the time.
+    // add_timer_token() inserts and arms the timer from other threads; without the lock this can
+    // read an empty map and disarm a timer that was just armed for a new entry.
+    std::scoped_lock lk{m_timed_events_mutex};
     update_timeout(clock::now());
 }
 
